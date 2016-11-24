@@ -1,0 +1,66 @@
+#!/bin/bash
+#
+# Usage:
+#  mygit_manager create REPO_NAME
+#  mygit_manager list
+#
+
+VALID_REPONAME_REGEX='^[-a-zA-Z0-9_.]+$'
+REPO_BASE_DIR=$HOME/repos/git
+REPO_RW_URL=\$USER@\$(hostname --fqdn):public_html/git/\$REPO_NAME
+REPO_RO_URL=http://\$(hostname --fqdn)/~\$USER/git/\$REPO_NAME
+
+check_repo_name() {
+    local name="$1"
+    if ! echo "$name" | egrep "$VALID_REPONAME_REGEX" > /dev/null ; then
+        die "'$name' contains invalid characters for a repository name"
+    fi
+    case "$name" in
+    .*)
+        die "Repository name must not start with '.'"
+        ;;
+    *)
+        ;;
+    esac
+}
+
+action_create() {
+    local REPO_NAME="$1"
+    if [ -z "$REPO_NAME" ] ; then
+        usage "Missing REPO_NAME argument"
+    fi
+    check_repo_name $REPO_NAME
+
+    # Reload config to evaluate url options again with ${REPO_NAME} set
+    load_config
+
+    if [ -d $REPO_BASE_DIR/$REPO_NAME ] ; then
+        die "There is already a repository named \"$REPO_NAME\""
+    fi
+
+    mkdir -p $REPO_BASE_DIR/$REPO_NAME
+    cd $REPO_BASE_DIR/$REPO_NAME
+    git init --bare --quiet
+    mv hooks/post-update.sample hooks/post-update
+    touch git-daemon-export-ok
+
+    cat <<EOF
+The "$REPO_NAME" repository has been created. You can clone it with:
+
+    git clone $REPO_RW_URL
+
+If you already have a local repository, you can push its content with:
+
+    git remote add origin $REPO_RW_URL
+    git push -u origin master
+EOF
+
+    if [ -n "$REPO_RO_URL" ] ; then
+        cat <<EOF
+
+The url for read-only access is:
+
+    $REPO_RO_URL
+EOF
+    fi
+}
