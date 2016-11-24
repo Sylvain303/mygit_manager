@@ -7,8 +7,12 @@
 
 VALID_REPONAME_REGEX='^[-a-zA-Z0-9_.]+$'
 REPO_BASE_DIR=$HOME/repos/git
-REPO_RW_URL=\$USER@\$(hostname --fqdn):public_html/git/\$REPO_NAME
-REPO_RO_URL=http://\$(hostname --fqdn)/~\$USER/git/\$REPO_NAME
+REPO_RW_URL=$USER@$(hostname --fqdn):$REPO_BASE_DIR
+
+die() {
+    echo "${0}:error: $*" >&2
+    exit 1
+}
 
 check_repo_name() {
     local name="$1"
@@ -25,42 +29,104 @@ check_repo_name() {
 }
 
 action_create() {
-    local REPO_NAME="$1"
-    if [ -z "$REPO_NAME" ] ; then
-        usage "Missing REPO_NAME argument"
+    local repo_name="$1"
+    if [[ -z "$repo_name" ]] ; then
+        die "Missing REPO_NAME argument"
     fi
-    check_repo_name $REPO_NAME
+    check_repo_name $repo_name
 
-    # Reload config to evaluate url options again with ${REPO_NAME} set
-    load_config
+    # Reload config to evaluate url options again with ${repo_name} set
+    #load_config
 
-    if [ -d $REPO_BASE_DIR/$REPO_NAME ] ; then
-        die "There is already a repository named \"$REPO_NAME\""
+    if [ -d $REPO_BASE_DIR/$repo_name ] ; then
+        die "There is already a repository named \"$repo_name\""
     fi
 
-    mkdir -p $REPO_BASE_DIR/$REPO_NAME
-    cd $REPO_BASE_DIR/$REPO_NAME
+    set -e
+    mkdir $REPO_BASE_DIR/$repo_name
+    cd $REPO_BASE_DIR/$repo_name
     git init --bare --quiet
     mv hooks/post-update.sample hooks/post-update
-    touch git-daemon-export-ok
+    set +e
 
+    local repos_url=$REPO_RW_URL/$repo_name
     cat <<EOF
 The "$REPO_NAME" repository has been created. You can clone it with:
 
-    git clone $REPO_RW_URL
+    git clone $repos_url
+    git clone $REPO_BASE_DIR/$repo_name
 
 If you already have a local repository, you can push its content with:
 
-    git remote add origin $REPO_RW_URL
+    git remote add origin $repos_url
     git push -u origin master
 EOF
 
-    if [ -n "$REPO_RO_URL" ] ; then
-        cat <<EOF
-
-The url for read-only access is:
-
-    $REPO_RO_URL
-EOF
-    fi
 }
+
+action_rm() {
+    force=false
+    if [[ "$1" == '-f' ]] ; then
+	force=true
+	shift
+    fi
+
+    local repo_name="$1"
+    if [ -z "$repo_name" ] ; then
+        die "Missing REPO_NAME argument"
+    fi
+    check_repo_name $repo_name
+
+    local path=$REPO_BASE_DIR/$repo_name
+    if [ ! -d "$path" ] ; then
+        die "There is no repository named \"$repo_name\""
+    fi
+    
+    if ! $force
+    then
+	echo -n "Delete the \"$repo_name\" repository? "
+	read answer
+    else
+	answer=Y
+    fi
+
+    case "$answer" in
+    y|Y)
+        rm -rf "$path"
+        ;;
+    *)
+        ;;
+    esac
+}
+
+action_list() {
+	cd $REPO_BASE_DIR && ls
+}
+
+action_init() {
+	mkdir -p $REPO_BASE_DIR
+}
+
+################ main ######################
+
+# auto detect action loop
+action="$1"
+shift
+all_func=$(sed -n '/^action_/ s/() {// p' $(readlink -f $0))
+found=0
+for f in $all_func
+do
+  if [[ "action_$action" == $f ]]
+  then
+    eval "$f $@"
+    found=1
+    break
+  fi
+done
+
+if [[ $found -eq 0 ]]
+then
+      echo "unknown action: '$action'"
+      exit 1
+fi
+
