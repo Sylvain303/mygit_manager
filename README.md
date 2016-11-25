@@ -2,6 +2,13 @@
 
 manage your personal git repos
 
+code inspired from
+https://github.com/agateau/reposetup
+
+## LICENCE
+
+GPLv3
+
 ## Install
 
 ~~~
@@ -12,15 +19,22 @@ make install.sh
 
 ## Usage
 
-Add a repos
+Add a repos (same behavior)
 ~~~
-mygit_manager add repos_name
+mygit_manager add REPOS_NAME
+mygit_manager create REPOS_NAME
 ~~~
 
 List repos
 
 ~~~
 mygit_manager list
+~~~
+
+remove a repos
+
+~~~
+mygit_manager rm REPO_NAME
 ~~~
 
 ## See Also
