@@ -4,11 +4,37 @@
 #  mygit_manager create REPO_NAME
 #  mygit_manager list
 #  mygit_manager rm REPO_NAME
+#  mygit_manager show REPO_NAME
 #
 
 VALID_REPONAME_REGEX='^[-a-zA-Z0-9_.]+$'
 REPO_BASE_DIR=$HOME/repos/git
 REPO_RW_URL=$USER@$(hostname --fqdn):$REPO_BASE_DIR
+
+## override with your own config
+[[ $0 != "$BASH_SOURCE" ]] && sourced=1 || sourced=0
+
+if [[ $sourced -eq 0  ]] ; then
+  scriptdir=$(dirname $(readlink -f "$0"))
+else
+  scriptdir=$(dirname $(readlink -f "$BASH_SOURCE"))
+fi
+
+# your export CONFFILE=some_file to override
+if [[ -z "$CONFFILE" ]]
+then
+  CONFFILE="$scriptdir/mygit_manager.conf"
+fi
+
+loadconf() {
+    local conffile="$1"
+    if [[ -e "$conffile" ]]
+    then
+        source "$conffile"
+        return 0
+    fi
+    return 0
+}
 
 die() {
   echo "${0}:error: $*" >&2
@@ -29,6 +55,22 @@ check_repo_name() {
   esac
 }
 
+fail_if_repo() {
+  case $1 in
+  exists|exist)
+    [[ -d "$REPO_BASE_DIR/$r2" ]] && \
+      die "There is already a repository named \"$repo_name\""
+    ;;
+  not_exists)
+    [[ -d "$REPO_BASE_DIR/$2" ]] || \
+      die "Repository named \"$repo_name\" is missing"
+    ;;
+  *)
+    die "argument '$1' not supported"
+    ;;
+  esac
+}
+
 action_add() {
   local repo_name="$1"
   if [[ -z "$repo_name" ]] ; then
@@ -39,9 +81,7 @@ action_add() {
   # Reload config to evaluate url options again with ${repo_name} set
   #load_config
 
-  if [ -d $REPO_BASE_DIR/$repo_name ] ; then
-    die "There is already a repository named \"$repo_name\""
-  fi
+  fail_if_repo exists $repo_name
 
   set -e
   mkdir $REPO_BASE_DIR/$repo_name
@@ -50,18 +90,8 @@ action_add() {
   mv hooks/post-update.sample hooks/post-update
   set +e
 
-  local repos_url=$REPO_RW_URL/$repo_name
-  cat <<EOF
-The "$REPO_NAME" repository has been created. You can clone it with:
-
-  git clone $repos_url
-  git clone $REPO_BASE_DIR/$repo_name
-
-If you already have a local repository, you can push its content with:
-
-  git remote add origin $repos_url
-  git push -u origin master
-EOF
+  echo "The \"$repo_name\" repository has been created."
+  action_show $repo_name
 }
 
 # alias of add
@@ -95,13 +125,10 @@ action_rm() {
     answer=Y
   fi
 
-  case "$answer" in
-    y|Y)
+  if [[ "$answer" =~ [oOyY] ]]
+  then
       rm -rf "$path"
-      ;;
-    *)
-      ;;
-  esac
+  fi
 }
 
 action_list() {
@@ -112,27 +139,51 @@ action_init() {
   mkdir -p $REPO_BASE_DIR
 }
 
+action_show() {
+  local repo_name=$1
+  fail_if_repo not_exists $repo_name
+
+  local repos_url=$REPO_RW_URL/$repo_name
+  cat <<EOF
+You can clone it with:
+
+  git clone $repos_url
+  git clone $REPO_BASE_DIR/$repo_name
+
+If you already have a local repository, you can push its content with:
+
+  git remote add origin $repos_url
+  git push -u origin master
+EOF
+}
+
 ################ main ######################
 
-# auto detect action loop
-action="$1"
-shift
-all_func=$(sed -n '/^action_/ s/() {// p' $(readlink -f $0))
-found=0
-for f in $all_func
-do
-  if [[ "action_$action" == $f ]]
-  then
-    # call the matching action with command line parameter
-    eval "$f $@"
-    found=1
-    break
-  fi
-done
+main() {
+	# auto detect action loop
+	action="$1"
+	shift
+	all_func=$(sed -n '/^action_/ s/() {// p' $(readlink -f $0))
+	found=0
+	for f in $all_func
+	do
+		if [[ "action_$action" == $f ]]
+		then
+			# call the matching action with command line parameter
+			eval "$f $@"
+			found=1
+			break
+		fi
+	done
 
-if [[ $found -eq 0 ]]
-then
-  echo "unknown action: '$action'"
-  exit 1
+	if [[ $found -eq 0 ]]
+	then
+		echo "unknown action: '$action'"
+		exit 1
+	fi
+}
+
+if [[ $sourced -eq 0  ]] ; then 
+   main "$@"
 fi
 
