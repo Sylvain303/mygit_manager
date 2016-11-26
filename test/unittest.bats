@@ -112,7 +112,7 @@ cleanup
   [[ -d "$REPO_BASE_DIR/some_repos/branches" ]]
 
   # no confirm
-  run yes | action_rm some_repos
+  run action_rm -f some_repos
   [[ $status -eq 0 ]]
   [[ ! -d "$REPO_BASE_DIR/some_repos/branches" ]]
   [[ -d "$REPO_BASE_DIR" ]]

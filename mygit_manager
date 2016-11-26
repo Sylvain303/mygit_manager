@@ -125,7 +125,7 @@ action_rm() {
   
   if ! $force
   then
-    echo -n "Delete the \"$repo_name\" repository? "
+    echo -n "Delete the \"$repo_name\" repository [y/n]? "
     read answer
   else
     answer=Y
