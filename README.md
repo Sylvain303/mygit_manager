@@ -14,7 +14,7 @@ GPLv3
 ~~~
 git clone mygit_manager
 cd mygit_manager
-make install.sh
+./mygit_manager init
 ~~~
 
 ## Usage
