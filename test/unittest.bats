@@ -5,8 +5,21 @@ export CONFFILE=$myconf
 source ../mygit_manager
 
 log() {
-  eval "echo \"$1=\$$1\" >> log"
+  if [[ $# -gt 1 ]]
+  then
+    eval "echo \"$1 $2=\$$2\" >> log"
+  else
+    eval "echo \"$1=\$$1\" >> log"
+  fi
 }
+
+cleanup() {
+  source $myconf
+  [[ "$REPO_BASE_DIR" =~ ^\. ]] && \
+    rm -rf "$REPO_BASE_DIR"
+}
+
+cleanup
 
 @test "config loaded" {
   VAR=value
@@ -48,9 +61,39 @@ log() {
   rmdir "$REPO_BASE_DIR"
 }
 
+@test "fail_if_repo exists and not_exists" {
+  loadconf $CONFFILE
+  mkdir -p $REPO_BASE_DIR
+  [[ ! -d $REPO_BASE_DIR/pipo ]]
+
+  run fail_if_repo exists pipo
+  [[ $status -eq 0 ]]
+
+  run fail_if_repo not_exists pipo
+  [[ $status -eq 1 ]]
+
+  mkdir $REPO_BASE_DIR/pipo
+  [[ -d $REPO_BASE_DIR/pipo ]]
+
+  run fail_if_repo exists pipo
+  [[ $status -eq 1 ]]
+
+  run fail_if_repo not_exists pipo
+  [[ $status -eq 0 ]]
+
+  cleanup
+}
+
 @test "action_add" {
   [[ "$PWD" =~ /test$ ]]
   loadconf $CONFFILE
   [[ "$REPO_BASE_DIR" == "./test_repos"  ]]
-  [[ "$REPO_BASE_DIR" == "./test_repos"  ]]
+  action_init
+
+  run action_add some_repos
+  [[ -d "$REPO_BASE_DIR/some_repos" ]]
+  [[ ! -z "$output" ]]
+  [[ -d "$REPO_BASE_DIR/some_repos/branches" ]]
+
+  cleanup
 }

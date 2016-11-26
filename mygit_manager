@@ -58,7 +58,7 @@ check_repo_name() {
 fail_if_repo() {
   case $1 in
   exists|exist)
-    [[ -d "$REPO_BASE_DIR/$r2" ]] && \
+    [[ -d "$REPO_BASE_DIR/$2" ]] && \
       die "There is already a repository named \"$repo_name\""
     ;;
   not_exists)
@@ -69,6 +69,7 @@ fail_if_repo() {
     die "argument '$1' not supported"
     ;;
   esac
+  return 0
 }
 
 action_add() {
@@ -160,6 +161,7 @@ EOF
 ################ main ######################
 
 main() {
+  loadconf $CONFFILE
 	# auto detect action loop
 	action="$1"
 	shift
