@@ -1,23 +1,10 @@
 #!/bin/bash
 
+# with conffile we can override defaults
 myconf=./config.conf
 export CONFFILE=$myconf
 source ../mygit_manager
-
-log() {
-  if [[ $# -gt 1 ]]
-  then
-    eval "echo \"$1 $2=\$$2\" >> log"
-  else
-    eval "echo \"$1=\$$1\" >> log"
-  fi
-}
-
-cleanup() {
-  source $myconf
-  [[ "$REPO_BASE_DIR" =~ ^\. ]] && \
-    rm -rf "$REPO_BASE_DIR"
-}
+source common.sh
 
 cleanup
 
@@ -68,32 +55,65 @@ cleanup
 
   run fail_if_repo exists pipo
   [[ $status -eq 0 ]]
+  [[ -z "$output" ]]
 
   run fail_if_repo not_exists pipo
   [[ $status -eq 1 ]]
+  regexp='is missing'
+  [[ "$output" =~ $regexp ]]
 
-  mkdir $REPO_BASE_DIR/pipo
-  [[ -d $REPO_BASE_DIR/pipo ]]
+  git init --bare $REPO_BASE_DIR/pipo
+  [[ -d $REPO_BASE_DIR/pipo/branches ]]
 
   run fail_if_repo exists pipo
   [[ $status -eq 1 ]]
+  regexp='already a repository named'
+  [[ "$output" =~ $regexp ]]
 
   run fail_if_repo not_exists pipo
   [[ $status -eq 0 ]]
+  [[ -z "$output" ]]
 
   cleanup
 }
 
+@test "action_show reponame" {
+  loadconf $CONFFILE
+  action_init
+  git init --bare $REPO_BASE_DIR/reponame
+  [[ -d $REPO_BASE_DIR/reponame/branches ]]
+
+  run action_show reponame
+  [[ $status -eq 0 ]]
+  [[ ! -z "$output" ]]
+}
+
 @test "action_add" {
   [[ "$PWD" =~ /test$ ]]
+  old_pwd=$PWD
   loadconf $CONFFILE
   [[ "$REPO_BASE_DIR" == "./test_repos"  ]]
   action_init
 
   run action_add some_repos
+  [[ $status -eq 0 ]]
+  [[ $PWD == $old_pwd ]]
   [[ -d "$REPO_BASE_DIR/some_repos" ]]
   [[ ! -z "$output" ]]
   [[ -d "$REPO_BASE_DIR/some_repos/branches" ]]
 
   cleanup
+}
+
+@test "action_rm" {
+  loadconf $CONFFILE
+  action_init
+  action_add some_repos
+  [[ -d "$REPO_BASE_DIR/some_repos/branches" ]]
+
+  # no confirm
+  run yes | action_rm some_repos
+  [[ $status -eq 0 ]]
+  [[ ! -d "$REPO_BASE_DIR/some_repos/branches" ]]
+  [[ -d "$REPO_BASE_DIR" ]]
 }

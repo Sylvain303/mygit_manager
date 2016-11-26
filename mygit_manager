@@ -7,9 +7,12 @@
 #  mygit_manager show REPO_NAME
 #
 
-VALID_REPONAME_REGEX='^[-a-zA-Z0-9_.]+$'
+# if you want to override this values
+# export CONFFILE=some_file
+# and define them inside some_file
+
+REPO_VALID_REGEX='^[-a-zA-Z0-9_.]+$'
 REPO_BASE_DIR=$HOME/repos/git
-REPO_RW_URL=$USER@$(hostname --fqdn):$REPO_BASE_DIR
 
 ## override with your own config
 [[ $0 != "$BASH_SOURCE" ]] && sourced=1 || sourced=0
@@ -43,7 +46,7 @@ die() {
 
 check_repo_name() {
   local name="$1"
-  if ! echo "$name" | egrep "$VALID_REPONAME_REGEX" > /dev/null ; then
+  if ! echo "$name" | egrep "$REPO_VALID_REGEX" > /dev/null ; then
     die "'$name' contains invalid characters for a repository name"
   fi
   case "$name" in
@@ -56,13 +59,15 @@ check_repo_name() {
 }
 
 fail_if_repo() {
+  local repo_name=$2
+  local checkp="$REPO_BASE_DIR/$repo_name/branches"
   case $1 in
   exists|exist)
-    [[ -d "$REPO_BASE_DIR/$2" ]] && \
+    [[ -d "$checkp" ]] && \
       die "There is already a repository named \"$repo_name\""
     ;;
   not_exists)
-    [[ -d "$REPO_BASE_DIR/$2" ]] || \
+    [[ ! -d "$checkp" ]] && \
       die "Repository named \"$repo_name\" is missing"
     ;;
   *)
@@ -84,11 +89,11 @@ action_add() {
 
   fail_if_repo exists $repo_name
 
+  local dest=$REPO_BASE_DIR/$repo_name
   set -e
-  mkdir $REPO_BASE_DIR/$repo_name
-  cd $REPO_BASE_DIR/$repo_name
-  git init --bare --quiet
-  mv hooks/post-update.sample hooks/post-update
+    mkdir $dest
+    git init --bare --quiet $dest
+    mv $dest/hooks/post-update.sample $dest/hooks/post-update
   set +e
 
   echo "The \"$repo_name\" repository has been created."
@@ -140,11 +145,16 @@ action_init() {
   mkdir -p $REPO_BASE_DIR
 }
 
+get_repos_url() {
+  local repo_rw_url=$USER@$(hostname --fqdn):$REPO_BASE_DIR
+  echo $repo_rw_url/$1
+}
+
 action_show() {
   local repo_name=$1
-  fail_if_repo not_exists $repo_name
+  fail_if_repo not_exists "$repo_name"
 
-  local repos_url=$REPO_RW_URL/$repo_name
+  local repos_url=$(get_repos_url $repo_name)
   cat <<EOF
 You can clone it with:
 
@@ -158,10 +168,16 @@ If you already have a local repository, you can push its content with:
 EOF
 }
 
+action_env() {
+  echo "CONFFILE=$CONFFILE"
+  set | grep '^REPO_'
+}
+
 ################ main ######################
 
 main() {
   loadconf $CONFFILE
+
 	# auto detect action loop
 	action="$1"
 	shift
