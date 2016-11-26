@@ -159,11 +159,14 @@ action_show() {
 You can clone it with:
 
   git clone $repos_url
+  # or
   git clone $REPO_BASE_DIR/$repo_name
 
 If you already have a local repository, you can push its content with:
 
   git remote add origin $repos_url
+  # or
+  git remote add origin $REPO_BASE_DIR/$repo_name
   git push -u origin master
 EOF
 }
