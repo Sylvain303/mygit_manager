@@ -14,6 +14,8 @@
 REPO_VALID_REGEX='^[-a-zA-Z0-9_.]+$'
 REPO_BASE_DIR=$HOME/repos/git
 
+[[ "$1" == "--help" ]] && { sed -n -e '/^# Usage:/,/^$/ s/^# \?//p' < $0; exit; }
+
 ## override with your own config
 [[ $0 != "$BASH_SOURCE" ]] && sourced=1 || sourced=0
 
@@ -150,11 +152,17 @@ get_repos_url() {
   echo $repo_rw_url/$1
 }
 
+get_my_ips() {
+  ifconfig | awk '/inet /{if($2 != "127.0.0.1"){print $2}}'
+}
+
 action_show() {
   local repo_name=$1
   fail_if_repo not_exists "$repo_name"
 
   local repos_url=$(get_repos_url $repo_name)
+  local hostname=$(hostname)
+
   cat <<EOF
 You can clone it with:
 
@@ -169,6 +177,19 @@ If you already have a local repository, you can push its content with:
   git remote add origin $REPO_BASE_DIR/$repo_name
   git push -u origin master
 EOF
+
+  echo -e "If you need to add this hostname:\n"
+  echo "cat << EOT >> ~/.ssh/config"
+
+  for ip in $(get_my_ips)
+  do
+  cat << EOT
+Host $hostname
+  HostKeyAlias $hostname
+  HostName $ip
+EOT
+  done
+  echo "EOT"
 }
 
 action_env() {
@@ -200,6 +221,7 @@ main() {
 	if [[ $found -eq 0 ]]
 	then
 		echo "unknown action: '$action'"
+    echo "$0 --help for help"
 		exit 1
 	fi
 }
