@@ -179,17 +179,17 @@ If you already have a local repository, you can push its content with:
 EOF
 
   echo -e "If you need to add this hostname:\n"
-  echo "cat << EOT >> ~/.ssh/config"
 
   for ip in $(get_my_ips)
   do
-  cat << EOT
+    echo "cat << EOT >> ~/.ssh/config"
+    cat << EOT
 Host $hostname
   HostKeyAlias $hostname
   HostName $ip
 EOT
+    echo "EOT"
   done
-  echo "EOT"
 }
 
 action_env() {
