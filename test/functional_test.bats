@@ -24,3 +24,11 @@ export CONFFILE=$conf
   source $conf
 	[[ -d "$REPO_BASE_DIR/some_repos" ]]
 }
+
+@test "cleanup functional testing" {
+  source $conf
+  regexp="^$myrepos"
+	[[ "$REPO_BASE_DIR" =~ $regexp ]]
+	[[ -d "$REPO_BASE_DIR" ]]
+  # rm -r "./$REPO_BASE_DIR"
+}

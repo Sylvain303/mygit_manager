@@ -62,14 +62,13 @@ check_repo_name() {
 
 fail_if_repo() {
   local repo_name=$2
-  local checkp="$REPO_BASE_DIR/$repo_name/branches"
   case $1 in
   exists|exist)
-    [[ -d "$checkp" ]] && \
+    check_dir_repos not_exists $repo_name ||
       die "There is already a repository named \"$repo_name\""
     ;;
   not_exists)
-    [[ ! -d "$checkp" ]] && \
+    check_dir_repos exists $repo_name ||
       die "Repository named \"$repo_name\" is missing"
     ;;
   *)
@@ -77,6 +76,23 @@ fail_if_repo() {
     ;;
   esac
   return 0
+}
+
+check_dir_repos() {
+  local repo_name=$2
+  local checkp="$REPO_BASE_DIR/$repo_name/branches"
+  case $1 in
+  exists)
+    [[ -d "$checkp" ]] && return 0
+    ;;
+  not_exists)
+    [[ ! -d "$checkp" ]] && return 0
+    ;;
+  *)
+    return 2
+    ;;
+  esac
+  return 1
 }
 
 action_add() {
@@ -158,6 +174,17 @@ get_my_ips() {
 
 action_show() {
   local repo_name=$1
+  if [[ -z "$repo_name" ]] ; then
+    # try if the current directory as a remote repos
+    for r in $(git remote -v | sed -n  's@.*/\([^/ ]\+\).*@\1@ p' | sort -u)
+    do
+      repo_name=$r
+      if check_dir_repos exists $repo_name ; then
+        break
+      fi
+    done
+  fi
+
   fail_if_repo not_exists "$repo_name"
 
   local repos_url=$(get_repos_url $repo_name)
@@ -176,6 +203,7 @@ If you already have a local repository, you can push its content with:
   # or
   git remote add origin $REPO_BASE_DIR/$repo_name
   git push -u origin master
+
 EOF
 
   echo -e "If you need to add this hostname:\n"
@@ -188,7 +216,7 @@ Host $hostname
   HostKeyAlias $hostname
   HostName $ip
 EOT
-    echo "EOT"
+    echo -e "EOT\n"
   done
 }
 
@@ -202,7 +230,7 @@ action_env() {
 main() {
   loadconf $CONFFILE
 
-	# auto detect action loop
+	# auto detect action_ loop
 	action="$1"
 	shift
 	all_func=$(sed -n '/^action_/ s/() {// p' $(readlink -f $0))

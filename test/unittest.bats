@@ -117,3 +117,30 @@ cleanup
   [[ ! -d "$REPO_BASE_DIR/some_repos/branches" ]]
   [[ -d "$REPO_BASE_DIR" ]]
 }
+
+@test "check_dir_repos" {
+  loadconf $CONFFILE
+  mkdir -p $REPO_BASE_DIR
+  [[ ! -d $REPO_BASE_DIR/pipo ]]
+
+  run check_dir_repos exists pipo
+  [[ $status -eq 1 ]]
+
+  run check_dir_repos not_exists pipo
+  [[ $status -eq 0 ]]
+
+  git init --bare $REPO_BASE_DIR/pipo
+  [[ -d $REPO_BASE_DIR/pipo/branches ]]
+
+  run check_dir_repos exists pipo
+  [[ $status -eq 0 ]]
+
+  run check_dir_repos not_exists pipo
+  [[ $status -eq 1 ]]
+
+  run check_dir_repos dummy pipo
+  [[ $status -eq 2 ]]
+  [[ -z "$output" ]]
+
+  cleanup
+}
